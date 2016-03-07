@@ -232,6 +232,28 @@ class TestWriter(unittest.TestCase):
 
         out.close()
 
+    def testHeader_contig(self):
+        """Make sure that the header written out matches the header we got"""
+        filename = 'test/test.vcf'
+        reader = cyvcf.Reader(open(filename))
+        out = StringIO()
+        writer = cyvcf.Writer(out, reader) #this will immediately call _write_header
+
+        out.seek(0)
+        new_lines = [x.rstrip() for x in read_header(out) if x.startswith('##contig')]
+        old_lines = [x.rstrip() for x in read_header(open(filename)) if x.startswith('##contig')]
+
+        self.assertEquals(len(new_lines), len(old_lines))
+
+        for i, line in enumerate(old_lines):
+            try:
+                self.assertEquals(line, new_lines[i])
+            except IndexError as e:
+                print "line {} with line number {} was not found in the original file??".format(line, i)
+                raise
+        
+        out.close()
+
     def testHeaderAdd(self):
         """Make sure we can add a header"""
         filename = 'test/example-4.0.vcf'

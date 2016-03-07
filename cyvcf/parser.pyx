@@ -28,6 +28,7 @@ RESERVED_FORMAT = {
 Info = collections.namedtuple('Info', ['id', 'num', 'type', 'desc'])
 Filter = collections.namedtuple('Filter', ['id', 'desc'])
 Format = collections.namedtuple('Format', ['id', 'num', 'type', 'desc'])
+Contig = collections.namedtuple('Contig', ['id', 'length'])
 
 HOM_REF = 0
 HET = 1
@@ -122,6 +123,7 @@ class _vcf_metadata_parser(object):
             Type=(?P<type>.+),\s*
             Description="(?P<desc>.*)"
             >''', re.VERBOSE)
+        #this will throw away assembly and any other crap
         self.contig_pattern = re.compile(r'''\#\#contig=<
             ID=(?P<id>[^>,]+)
             (,.*length=(?P<length>-?\d+))?
@@ -177,6 +179,15 @@ class _vcf_metadata_parser(object):
                        match.group('type'), match.group('desc'))
 
         return (match.group('id'), form)
+
+    def read_contig(self, contig_string):
+        match = self.contig_pattern.match(contig_string)
+        if not match:
+            raise SyntaxError("One of the contig lines is malformed: {}".format(contig_string))
+
+        contig = Contig(match.group('id'), match.group('length'))
+
+        return (match.group('id'), contig)
 
     def read_meta(self, meta_string):
         match = self.meta_pattern.match(meta_string)
@@ -800,7 +811,7 @@ cdef class Reader(object):
     cdef char _prepend_chr
     cdef public object reader
     cdef bint compressed, prepend_chr
-    cdef public object metadata, infos, filters, formats,
+    cdef public object metadata, infos, filters, formats, contigs,
     cdef readonly dict _sample_indexes
     cdef list _header_lines, samp_data
     cdef public list samples
@@ -844,6 +855,7 @@ cdef class Reader(object):
         self.filters = collections.OrderedDict()
         #: FORMAT fields from header
         self.formats = collections.OrderedDict()
+        self.contigs = collections.OrderedDict()
         self.samples = []
         self._sample_indexes = {}
         self._header_lines = []
@@ -895,6 +907,10 @@ cdef class Reader(object):
                 key, val = parser.read_format(line)
                 self.formats[key] = val
 
+            elif line.startswith('##contig'):
+                key, val = parser.read_contig(line)
+                self.contigs[key] = val
+
             else:
                 key, val = parser.read_meta(line.strip())
                 self.metadata[key] = val
@@ -909,7 +925,7 @@ cdef class Reader(object):
             self.num_samples = len(self.samples)
             self._sample_indexes = dict([(x,i) for (i,x) in enumerate(self.samples)])
         else:
-             sys.exit("Expected column definition line beginning with #.  Not found - exiting.")
+             sys.exit("Expected column definition line beginning with #.  Not found - exiting. ({})".format(line))
 
 
     cdef list _map(Reader self, func, iterable, char *bad='.'):
@@ -1163,12 +1179,20 @@ class Writer(object):
         for line in template.metadata.items():
             stream.write('##%s=%s\n' % line)
         for line in template.infos.values():
-            stream.write('##INFO=<ID=%s,Number=%s,Type=%s,Description="%s">\n' %
-                    tuple(self._map(str, line)))
+            stream.write('##INFO=<ID=%s,Number=%s,Type=%s,Description="%s">\n' % tuple(self._map(str, line)))
         for line in template.formats.values():
             stream.write('##FORMAT=<ID=%s,Number=%s,Type=%s,Description="%s">\n' % tuple(self._map(str, line)))
         for line in template.filters.values():
             stream.write('##FILTER=<ID=%s,Description="%s">\n' % tuple(self._map(str, line)))
+        for line in template.contigs.values():
+            text = '##contig=<ID={}'.format(line.id)
+
+            if line.length is not None:
+                text += ',length={}>\n'.format(line.length)
+            else:
+                text += '>\n'
+
+            stream.write(text)
 
         self._write_header()
 
