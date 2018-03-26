@@ -12,6 +12,10 @@ The functionality and interface are currently the same as documented here: http:
 Installation
 ============
 
+    virtualenv venv
+    source venv/bin/activate
+    pip install cython
+
     python setup.py build
     python setup.py install
 
