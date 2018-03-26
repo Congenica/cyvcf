@@ -214,7 +214,7 @@ cdef class _Call(object):
         #: Dictionary of data from the VCF file
         self.data = data
         # '0/1', '0/0', etc.
-        self.gt_nums = self.data['GT']
+        self.gt_nums = self.data.get('GT', None)
         # True if the GT is not ./.
         self.called = self.gt_nums is not None
         # True if the GT is phased (A|G, not A/G)
@@ -541,7 +541,7 @@ cdef class Record(object):
         return ';'.join(["%s=%s" % (x, self._stringify(y)) for x, y in self.INFO.items()])
 
     def _format_sample(self, sample):
-        if sample.data["GT"] is None:
+        if sample.data.get("GT", None) is None:
             return "./."
         return ':'.join(self._stringify(sample.data[f]) for f in self.FORMAT.split(':'))
 
@@ -1247,7 +1247,7 @@ class Writer(object):
         #return ';'.join("%s=%s" % (x, self._stringify(y)) for x, y in info.items())
 
     def _format_sample(self, fmt, sample):
-        if sample.data["GT"] is None:
+        if sample.data.get("GT", None) is None:
             return "./."
         return ':'.join(self._stringify(sample.data[f]) for f in fmt.split(':'))
 

@@ -77,6 +77,18 @@ class TestVcfSpecs(unittest.TestCase):
         # asserting False while I work out what to check
         assert False
 
+    def test_vcf_4_1_sv_no_gt(self):
+        reader = cyvcf.Reader(fh('example-4.1-sv-no-gt.vcf'))
+
+        assert 'SVLEN' in reader.infos
+
+        # test we can walk the file at least
+        for r in reader:
+            assert str(r)
+
+            for c in r:
+                assert str(c)
+
 
 class TestGatkOutput(unittest.TestCase):
 
@@ -858,7 +870,7 @@ class TestGLInt(unittest.TestCase):
         self.assertEqual(v.samples[0].gt_phred_likelihoods, None)
 
 
-
+suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestVcfSpecs))
 suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestAD))
 suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestGatkOutput))
 suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestFreebayesOutput))
