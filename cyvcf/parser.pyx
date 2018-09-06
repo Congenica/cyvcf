@@ -541,7 +541,7 @@ cdef class Record(object):
         return ';'.join(["%s=%s" % (x, self._stringify(y)) for x, y in self.INFO.items()])
 
     def _format_sample(self, sample):
-        if sample.data.get("GT", None) is None:
+        if sample.data.get("GT", None) is None and not self.is_sv:
             return "./."
         return ':'.join(self._stringify(sample.data[f]) for f in self.FORMAT.split(':'))
 
@@ -1247,7 +1247,7 @@ class Writer(object):
         #return ';'.join("%s=%s" % (x, self._stringify(y)) for x, y in info.items())
 
     def _format_sample(self, fmt, sample):
-        if sample.data.get("GT", None) is None:
+        if sample.data.get("GT", None) is None and not sample.site.is_sv:
             return "./."
         return ':'.join(self._stringify(sample.data[f]) for f in fmt.split(':'))
 
