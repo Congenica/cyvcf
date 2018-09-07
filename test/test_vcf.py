@@ -79,15 +79,27 @@ class TestVcfSpecs(unittest.TestCase):
 
     def test_vcf_4_1_sv_no_gt(self):
         reader = cyvcf.Reader(fh('example-4.1-sv-no-gt.vcf'))
+        out = StringIO()
+        writer = cyvcf.Writer(out, reader)
 
         assert 'SVLEN' in reader.infos
 
         # test we can walk the file at least
         for r in reader:
             assert str(r)
-
+            writer.write_record(r)
             for c in r:
                 assert str(c)
+
+                expected_sample_values = sorted([','.join(str(x) for x in value) if isinstance(value, list)
+                                                 else str(value) for value in c.data.values()])
+                assert expected_sample_values == sorted(r._format_sample(c).split(':')), 'Sample {} values for {} ' \
+                    'in the VCF Reader did not match the expected values'.format(c.sample, ','.join(c.data.keys()))
+
+                written_variant = writer.stream.buflist[-1]
+                written_sample_values = written_variant.strip().split('\t')[-1]
+                assert expected_sample_values == sorted(written_sample_values.split(':')), 'Sample {} values for {} ' \
+                    'in the output VCF did not match the expected values'.format(c.sample, ','.join(c.data.keys()))
 
 
 class TestGatkOutput(unittest.TestCase):
