@@ -1216,7 +1216,7 @@ class Writer(object):
     def _format_qual(self, qual):
         #strip off superfluous .0 to match what's in the test vcfs
         #maybe we should just store the original text on the class?
-        return str(qual).rstrip('0').rstrip('.') if qual else '.'
+        return str(qual).rstrip('0').rstrip('.') if qual is not None else '.'
 
     #duplicated _format code from above, true for all these methods
     def _format_filter(self, filt):
