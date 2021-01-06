@@ -1,3 +1,4 @@
+from collections import namedtuple
 import unittest
 import doctest
 import os
@@ -100,6 +101,51 @@ class TestVcfSpecs(unittest.TestCase):
                 written_sample_values = written_variant.strip().split('\t')[-1]
                 assert expected_sample_values == sorted(written_sample_values.split(':')), 'Sample {} values for {} ' \
                     'in the output VCF did not match the expected values'.format(c.sample, ','.join(c.data.keys()))
+
+    def test_vcf_4_1_qual_value(self):
+        """Tests that the QUAL field is correctly parsed when reading to the Record object and writing out to the VCF.
+        This test was added due to a cyvcf bug that wrote a QUAL value of `0` out as `.`
+        """
+
+        QualTypes = namedtuple("QualTypes", ("reader_record", "writer_string"))
+        expected_quals = {
+            "rs6054257": QualTypes(29.0, "29"),
+            "rs6054258": QualTypes(0.0, "0"),
+            "rs6054259": QualTypes(67.0, "67"),
+            "rs6054260": QualTypes(47.0, "47"),
+            "microsat1": QualTypes(0.0, "0"),
+        }
+        reader = cyvcf.Reader(fh('example-4.1-qual-value-0.vcf'))
+        out = StringIO()
+        writer = cyvcf.Writer(out, reader)
+
+        failure_msg = "Variant QUAL of {} in variant {} did not match expected QUAL of {}"
+        seen_variants = 0
+        for r in reader:
+            assert expected_quals[r.ID].reader_record == r.QUAL, failure_msg.format(
+                r.QUAL,
+                "Record object",
+                expected_quals[r.ID].reader_record
+            )
+
+            writer.write_record(r)
+            written_variant = writer.stream.buflist[-1]
+            written_sample_qual = written_variant.strip().split('\t')[5]
+
+            assert expected_quals[r.ID].writer_string == written_sample_qual, failure_msg.format(
+                written_sample_qual,
+                "written to VCF",
+                expected_quals[r.ID].writer_string
+            )
+
+            seen_variants += 1
+
+        expected_num_variants = len(expected_quals)
+        assert expected_num_variants == seen_variants, (
+            "Did not test expected number of variants: expected {}, tested {}".format(
+                expected_num_variants, seen_variants
+            )
+        )
 
 
 class TestGatkOutput(unittest.TestCase):
